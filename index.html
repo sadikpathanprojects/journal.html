@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Daily Journal — One Good Thing</title>
+<title>Daily Journal — One Good Thing (2024–2075)</title>
 <style>
   :root{
     --bg:#f6f8fb;
@@ -127,7 +127,7 @@
           <div class="small muted-note" id="status">No date selected</div>
         </div>
 
-        <div style="margin-top:12px" class="small">Backup tip: click <b>Download Backup</b> often and store the file in a safe place (USB/Drive) — restores if browser data is cleared.</div>
+        <div style="margin-top:12px" class="small">Backup tip: click <b>Download Backup</b> and keep a copy safe — restores if browser data is cleared.</div>
       </div>
     </div>
 
@@ -163,13 +163,14 @@ const fileInput = document.getElementById('fileInput');
 let viewDate = new Date(); // date used to render month view
 let selectedDate = null; // Date object of selected day
 
-/* Populate month+year selectors */
+/* Populate month+year selectors (2024..2075) */
 function populateSelectors(){
   const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   monthSelect.innerHTML = monthNames.map((m,i)=> `<option value="${i}">${m}</option>`).join('');
-  const thisYear = new Date().getFullYear();
+  const startYear = 2024;
+  const endYear = 2075;
   const years = [];
-  for(let y = thisYear - 10; y <= thisYear + 10; y++) years.push(y);
+  for(let y = startYear; y <= endYear; y++) years.push(y);
   yearSelect.innerHTML = years.map(y=> `<option value="${y}">${y}</option>`).join('');
 }
 
@@ -269,7 +270,7 @@ function short(s, n){ return s.length > n ? s.slice(0,n-1)+'…' : s }
 
 /* Escape HTML to prevent injection in calendar preview */
 function escapeHtml(str){
-  return str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 }
 
 /* Keyboard shortcut save (Ctrl/Cmd+S) */
@@ -341,9 +342,6 @@ statusEl.textContent = 'Loaded.';
 saveBtn.onclick = saveEntry;
 clearBtn.onclick = clearText;
 deleteBtn.onclick = deleteEntry;
-
-/* Helpful note: offer periodic auto-backup prompt (optional) */
-// Example: every 7th save, show small tip to backup (not implemented automatically).
 </script>
 </body>
 </html>
