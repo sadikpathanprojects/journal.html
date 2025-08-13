@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Daily Journal — One Good Thing</title>
+<style>
+  :root{
+    --bg:#f6f8fb;
+    --card:#ffffff;
+    --muted:#6b7280;
+    --accent:#2563eb;
+    --accent-2:#06b6d4;
+    --shadow: 0 8px 30px rgba(16,24,40,0.08);
+    --radius:12px;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", "Segoe UI Mono", monospace;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    background: linear-gradient(180deg,#eef2ff,#f6f8fb);
+    color:#0f172a; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+    padding:18px; display:flex; justify-content:center;
+  }
+  .container{max-width:1100px; width:100%;}
+  header{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px}
+  h1{margin:0; font-size:20px}
+  .sub{color:var(--muted); font-size:13px}
+
+  .main{display:grid; grid-template-columns: 360px 1fr; gap:18px;}
+  @media (max-width:980px){ .main{grid-template-columns:1fr} }
+
+  /* calendar card */
+  .card{background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:14px; border:1px solid rgba(15,23,42,0.04)}
+  .cal-header{display:flex; gap:8px; align-items:center; justify-content:space-between; margin-bottom:12px}
+  .cal-nav{display:flex; gap:8px; align-items:center}
+  .btn{background:transparent; border:1px solid rgba(15,23,42,0.06); padding:8px 10px; border-radius:8px; cursor:pointer; font-weight:600}
+  .btn.primary{background:linear-gradient(90deg,var(--accent),var(--accent-2)); color:white; border:none}
+  .select-month, .select-year{padding:8px 10px; border-radius:8px; border:1px solid rgba(15,23,42,0.06); background:transparent}
+
+  .calendar{display:grid; grid-template-columns: repeat(7, 1fr); gap:6px}
+  .weekday{font-size:12px; color:var(--muted); text-align:center; padding:6px 4px}
+  .day{
+    min-height:64px; border-radius:10px; padding:8px; display:flex; flex-direction:column; gap:6px;
+    background:linear-gradient(180deg, transparent, rgba(2,6,23,0.01));
+    cursor:pointer; border:1px solid transparent;
+  }
+  .day:hover{border-color: rgba(37,99,235,0.12)}
+  .day.disabled{opacity:.45; cursor:default}
+  .day .num{font-weight:700; font-size:14px}
+  .dot{width:8px; height:8px; border-radius:50%; background:var(--accent-2); margin-left:auto}
+
+  .today{box-shadow: 0 4px 14px rgba(6,182,212,0.12); border:1px solid rgba(6,182,212,0.18)}
+
+  /* Entry panel */
+  .entry-title{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px}
+  .entry-date{font-weight:700}
+  textarea#entry{width:100%; min-height:260px; resize:vertical; padding:12px; border-radius:10px; border:1px solid rgba(15,23,42,0.06); font-size:16px; line-height:1.5}
+  .entry-actions{display:flex; gap:8px; align-items:center; margin-top:10px}
+  .small{font-size:13px; color:var(--muted)}
+  .muted-note{font-size:13px; color:var(--muted); margin-top:8px}
+
+  /* utilities row */
+  .utils{display:flex; gap:8px; align-items:center}
+  .link-like{background:transparent; border:none; color:var(--accent); cursor:pointer; font-weight:700}
+
+  footer{margin-top:18px; color:var(--muted); font-size:13px; text-align:center}
+</style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>Daily Journal — One Good Thing</h1>
+        <div class="sub">Click a date, write one positive thing. Data stored on this device only.</div>
+      </div>
+      <div class="utils">
+        <button class="btn" id="downloadBtn" title="Download backup">Download Backup</button>
+        <button class="btn" id="restoreBtn" title="Restore from file">Restore</button>
+        <input id="fileInput" type="file" accept="application/json" style="display:none">
+      </div>
+    </header>
+
+    <div class="main">
+      <!-- LEFT: calendar -->
+      <div class="card" aria-label="Calendar">
+        <div class="cal-header">
+          <div class="cal-nav">
+            <button class="btn" id="prevMonth">&lt;</button>
+            <div>
+              <select id="monthSelect" class="select-month"></select>
+              <select id="yearSelect" class="select-year"></select>
+            </div>
+            <button class="btn" id="nextMonth">&gt;</button>
+          </div>
+          <div>
+            <button class="btn" id="todayBtn">Today</button>
+          </div>
+        </div>
+
+        <div class="calendar-weekdays" style="display:grid; grid-template-columns:repeat(7,1fr); gap:6px; margin-bottom:6px">
+          <div class="weekday">Sun</div><div class="weekday">Mon</div><div class="weekday">Tue</div><div class="weekday">Wed</div><div class="weekday">Thu</div><div class="weekday">Fri</div><div class="weekday">Sat</div>
+        </div>
+
+        <div id="calendarGrid" class="calendar" role="grid" aria-label="Month calendar"></div>
+        <div style="margin-top:10px" class="small">Days with a dot have saved entries. Use <kbd>Ctrl/Cmd+S</kbd> to save quickly.</div>
+      </div>
+
+      <!-- RIGHT: entry editor -->
+      <div class="card">
+        <div class="entry-title">
+          <div>
+            <div class="entry-date" id="entryDate">Select a day</div>
+            <div class="small" id="entryDayOfWeek"></div>
+          </div>
+          <div>
+            <button class="btn" id="deleteBtn" style="display:none; background:#fee2e2; border-color:#fecaca">Delete</button>
+          </div>
+        </div>
+
+        <textarea id="entry" placeholder="Write the one good thing that happened today..."></textarea>
+
+        <div class="entry-actions">
+          <button class="btn primary" id="saveBtn">Save</button>
+          <button class="btn" id="clearBtn">Clear</button>
+          <div style="flex:1"></div>
+          <div class="small muted-note" id="status">No date selected</div>
+        </div>
+
+        <div style="margin-top:12px" class="small">Backup tip: click <b>Download Backup</b> often and store the file in a safe place (USB/Drive) — restores if browser data is cleared.</div>
+      </div>
+    </div>
+
+    <footer>Stored locally — will be removed if you clear site data / cookies. Use Download Backup to save a copy.</footer>
+  </div>
+
+<script>
+/* ------------------------
+   Data model & storage
+   ------------------------ */
+const STORAGE_KEY = 'daily_journal_v1';
+let journal = {}; // { 'YYYY-MM-DD': 'text' }
+try { journal = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') } catch(e){ journal = {} }
+
+/* UI references */
+const monthSelect = document.getElementById('monthSelect');
+const yearSelect = document.getElementById('yearSelect');
+const calendarGrid = document.getElementById('calendarGrid');
+const prevMonthBtn = document.getElementById('prevMonth');
+const nextMonthBtn = document.getElementById('nextMonth');
+const todayBtn = document.getElementById('todayBtn');
+const entryDateEl = document.getElementById('entryDate');
+const entryDayOfWeekEl = document.getElementById('entryDayOfWeek');
+const entryTextarea = document.getElementById('entry');
+const saveBtn = document.getElementById('saveBtn');
+const clearBtn = document.getElementById('clearBtn');
+const deleteBtn = document.getElementById('deleteBtn');
+const statusEl = document.getElementById('status');
+const downloadBtn = document.getElementById('downloadBtn');
+const restoreBtn = document.getElementById('restoreBtn');
+const fileInput = document.getElementById('fileInput');
+
+let viewDate = new Date(); // date used to render month view
+let selectedDate = null; // Date object of selected day
+
+/* Populate month+year selectors */
+function populateSelectors(){
+  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  monthSelect.innerHTML = monthNames.map((m,i)=> `<option value="${i}">${m}</option>`).join('');
+  const thisYear = new Date().getFullYear();
+  const years = [];
+  for(let y = thisYear - 10; y <= thisYear + 10; y++) years.push(y);
+  yearSelect.innerHTML = years.map(y=> `<option value="${y}">${y}</option>`).join('');
+}
+
+/* Helpers */
+function yyyy_mm_dd(d){
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const dd = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${dd}`;
+}
+function startOfMonth(d){ return new Date(d.getFullYear(), d.getMonth(), 1); }
+function daysInMonth(y,m){ return new Date(y,m+1,0).getDate(); }
+
+/* Render calendar */
+function renderCalendar(){
+  calendarGrid.innerHTML = '';
+  const y = viewDate.getFullYear();
+  const m = viewDate.getMonth();
+  const first = startOfMonth(viewDate);
+  const startWeekday = first.getDay(); // 0=Sun ..6
+  const totalDays = daysInMonth(y,m);
+  // fill blanks for previous month
+  for(let i=0;i<startWeekday;i++){
+    const el = document.createElement('div'); el.className='day disabled'; calendarGrid.appendChild(el);
+  }
+  for(let day=1; day<=totalDays; day++){
+    const dateObj = new Date(y,m,day);
+    const iso = yyyy_mm_dd(dateObj);
+    const el = document.createElement('div');
+    el.className='day';
+    if(iso === yyyy_mm_dd(new Date())) el.classList.add('today');
+    el.innerHTML = `<div style="display:flex;align-items:center;gap:8px"><div class="num">${day}</div><div style="flex:1"></div>${journal[iso] ? '<div class="dot" title="Has entry"></div>':''}</div>
+                    <div style="flex:1; font-size:13px; color:var(--muted); margin-top:6px; overflow:hidden; max-height:54px;">${journal[iso] ? escapeHtml(short(journal[iso],120)) : ''}</div>`;
+    el.onclick = ()=> selectDate(dateObj);
+    calendarGrid.appendChild(el);
+  }
+  // set selects
+  monthSelect.value = String(viewDate.getMonth());
+  yearSelect.value = String(viewDate.getFullYear());
+}
+
+/* select a date for editing */
+function selectDate(d){
+  selectedDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const iso = yyyy_mm_dd(selectedDate);
+  entryDateEl.textContent = iso;
+  entryDayOfWeekEl.textContent = selectedDate.toDateString().split(' ')[0] + ', ' + selectedDate.toLocaleDateString();
+  entryTextarea.value = journal[iso] || '';
+  statusEl.textContent = journal[iso] ? 'Loaded saved entry' : 'No entry yet for this day';
+  deleteBtn.style.display = journal[iso] ? 'inline-block' : 'none';
+  entryTextarea.focus();
+}
+
+/* Save entry */
+function saveEntry(){
+  if(!selectedDate){ alert('Select a date first.'); return; }
+  const iso = yyyy_mm_dd(selectedDate);
+  const text = entryTextarea.value.trim();
+  if(text.length===0){
+    if(journal[iso]){ // remove if empty
+      delete journal[iso];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(journal));
+      statusEl.textContent = 'Empty — entry deleted';
+      deleteBtn.style.display = 'none';
+      renderCalendar();
+    } else {
+      statusEl.textContent = 'Nothing to save';
+    }
+    return;
+  }
+  journal[iso] = text;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(journal));
+  statusEl.textContent = 'Saved';
+  deleteBtn.style.display = 'inline-block';
+  renderCalendar();
+}
+
+/* Clear textarea (does not delete saved entry) */
+function clearText(){ entryTextarea.value = ''; statusEl.textContent='Cleared (not saved)'; }
+
+/* Delete saved entry for selected day */
+function deleteEntry(){
+  if(!selectedDate) return;
+  const iso = yyyy_mm_dd(selectedDate);
+  if(!journal[iso]) return;
+  if(!confirm('Delete this entry?')) return;
+  delete journal[iso];
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(journal));
+  entryTextarea.value = '';
+  statusEl.textContent = 'Deleted';
+  deleteBtn.style.display = 'none';
+  renderCalendar();
+}
+
+/* short preview helper */
+function short(s, n){ return s.length > n ? s.slice(0,n-1)+'…' : s }
+
+/* Escape HTML to prevent injection in calendar preview */
+function escapeHtml(str){
+  return str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+/* Keyboard shortcut save (Ctrl/Cmd+S) */
+window.addEventListener('keydown', (e)=>{
+  if((e.ctrlKey || e.metaKey) && e.key.toLowerCase()==='s'){
+    e.preventDefault();
+    saveEntry();
+  }
+});
+
+/* Month/year navigation */
+prevMonthBtn.onclick = ()=> { viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth()-1, 1); renderCalendar(); }
+nextMonthBtn.onclick = ()=> { viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth()+1, 1); renderCalendar(); }
+monthSelect.onchange = ()=> { viewDate = new Date(parseInt(yearSelect.value), parseInt(monthSelect.value), 1); renderCalendar(); }
+yearSelect.onchange = ()=> { viewDate = new Date(parseInt(yearSelect.value), parseInt(monthSelect.value), 1); renderCalendar(); }
+todayBtn.onclick = ()=> { viewDate = new Date(); renderCalendar(); selectDate(new Date()); }
+
+/* Download backup (JSON) */
+downloadBtn.onclick = ()=>{
+  const blob = new Blob([JSON.stringify({ exportedAt:new Date().toISOString(), journal }, null, 2)], {type:'application/json'});
+  const name = 'journal_backup_' + new Date().toISOString().slice(0,10) + '.json';
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+};
+
+/* Restore from file (merge or replace) */
+restoreBtn.onclick = ()=> fileInput.click();
+fileInput.onchange = (e)=>{
+  const f = e.target.files[0];
+  if(!f) return;
+  const r = new FileReader();
+  r.onload = (ev)=>{
+    try {
+      const data = JSON.parse(ev.target.result);
+      if(!data || typeof data !== 'object') throw new Error('Invalid file');
+      const incoming = data.journal || data; // support both wrapper and raw object
+      if(!confirm('Replace all local entries with the imported data? (Cancel to merge)')) {
+        // merge
+        Object.assign(journal, incoming);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(journal));
+        renderCalendar();
+        alert('Merged imported entries.');
+      } else {
+        // replace
+        journal = incoming;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(journal));
+        renderCalendar();
+        entryTextarea.value = '';
+        selectedDate = null;
+        entryDateEl.textContent = 'Select a day';
+        entryDayOfWeekEl.textContent = '';
+        alert('Imported and replaced local entries.');
+      }
+    } catch(err){
+      alert('Failed to import: ' + (err.message || err));
+    }
+  };
+  r.readAsText(f);
+  e.target.value = '';
+};
+
+/* Init */
+populateSelectors();
+renderCalendar();
+
+/* Optional: select today by default */
+selectDate(new Date());
+statusEl.textContent = 'Loaded.';
+
+saveBtn.onclick = saveEntry;
+clearBtn.onclick = clearText;
+deleteBtn.onclick = deleteEntry;
+
+/* Helpful note: offer periodic auto-backup prompt (optional) */
+// Example: every 7th save, show small tip to backup (not implemented automatically).
+</script>
+</body>
+</html>
